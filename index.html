@@ -28,9 +28,10 @@
     a{color:#a5b4fc;text-decoration:none}
   </style>
   <!-- Celestial.js (D3-based sky map) -->
-  <script src="https://d3js.org/d3.v3.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/celestial.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/celestial.min.js"></script>
+  <script src="https://d3js.org/d3.v3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/celestial.min.js"></script>
+
   <!-- Supabase JS (auth + database). Fill in your project details below. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -133,26 +134,29 @@ setSessionInfo();
 // ===================== SKY MAP (D3-Celestial) =====================
 const mapCfg = {
   container: 'celestial-map',
-  width: 0,                    // auto fit to container
   projection: 'aitoff',
   datapath: 'https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/',
   form: false,
-  controls: true,              // zoom/pan controls
+  controls: true,
   interactive: true,
-  negative: true,              // dark theme
-  constellations: { names: false, lines: false, bounds: false }, // clean sky
+  negative: true,
+  constellations: { names: false, lines: false, bounds: false },
   stars: { show: true, limit: 8, colors: true },
   dsos: { show: false },
-  planets: { show: false },   // <— hide all planets (no Jupiter)
+  planets: { show: false },
   mw: { show: true },
   background: { fill: 'transparent', stroke: '#192033', opacity: 0.7 },
   horizon: { show: true },
+
+  // ✅ set these here instead of calling Celestial.location/date()
+  location: [9.872, 46.534],     // [lon, lat] → Samedan
+  date: new Date()               // current time
 };
 
 function refreshMap() {
   // Fixed observer location (Samedan) and current time
-  Celestial.location([LON_SAMEDAN, LAT_SAMEDAN]);
-  Celestial.date(new Date());
+  //Celestial.location([LON_SAMEDAN, LAT_SAMEDAN]);
+  //Celestial.date(new Date());
 
   // Fit to container width
   const wrap = document.getElementById('mapwrap');
