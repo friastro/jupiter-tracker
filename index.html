@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jupiter Tracker</title>
+  <title>Jupiter Tracker — Dark • Free Nav • Samedan</title>
   <meta name="theme-color" content="#0b1020" />
   <style>
     :root{--bg:#0b1020;--panel:#0f172a;--muted:#93a3b8;--text:#e5e7eb;--accent:#22c55e;--blue:#3b82f6}
@@ -17,15 +17,12 @@
     label{font-size:12px;color:var(--muted)}
     input,button{width:100%;padding:10px;border-radius:10px;border:1px solid #243044;background:#0c1426;color:var(--text)}
     button{cursor:pointer;font-weight:700}
-    .success{color:#86efac}
-    .warn{color:#fde68a}
     .row{display:flex;gap:8px}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     .pill{display:inline-block;border:1px solid #243044;border-radius:999px;padding:6px 10px;color:#9fb0c6;font-size:12px}
     #mapwrap{position:relative}
     #celestial-map{width:100%;height:auto;display:block}
     #overlay{position:absolute;inset:0;pointer-events:none}
-    .dot{fill:#22c55e;stroke:#3b82f6;stroke-width:1.5px}
     .legend{position:absolute;left:8px;bottom:8px;color:#a3b3c7;font-size:12px;background:rgba(15,23,42,.8);padding:6px 8px;border-radius:8px;border:1px solid #243044}
     .footer{padding:10px 14px;color:#94a3b8;font-size:12px;text-align:center}
     a{color:#a5b4fc;text-decoration:none}
@@ -42,10 +39,11 @@
     <h1>Jupiter Tracker</h1>
     <div class="pill" id="status">not signed in</div>
   </header>
+
   <main>
     <aside class="card" id="authCard">
       <h3 style="margin-top:0">Sign in</h3>
-      <p style="margin:6px 0 10px;color:#9fb0c6">Use email magic link or anonymous guest.</p>
+      <p style="margin:6px 0 10px;color:#9fb0c6">Email magic link or guest session.</p>
       <label>Email</label>
       <input id="email" type="email" placeholder="you@example.com" />
       <div class="row" style="margin-top:8px">
@@ -57,55 +55,40 @@
         <button id="signOut">Sign out</button>
         <button id="refreshPositions">Refresh positions</button>
       </div>
-      <p id="authMsg" class="warn"></p>
+      <p id="authMsg" style="color:#fde68a"></p>
+
       <hr style="border-color:#1f2937;margin:12px 0">
-      <div>
-        <label>Your location</label>
-        <div class="row" style="margin-top:6px">
-          <input id="lat" type="number" step="0.0001" placeholder="Latitude (°)" />
-          <input id="lon" type="number" step="0.0001" placeholder="Longitude (°)" />
-        </div>
-        <div class="row" style="margin-top:6px">
-          <button id="useGPS">Use device GPS</button>
-          <button id="applyLocation">Apply</button>
-        </div>
-        <p class="pill" id="locInfo">loc: —</p>
-      </div>
-      <div style="margin-top:10px">
-        <label>Map time</label>
-        <div class="row" style="margin-top:6px">
-          <input id="obsTime" type="datetime-local" />
-          <button id="nowBtn">Now</button>
-        </div>
-      </div>
-      <div style="margin-top:10px">
-        <label>Layers</label>
-        <div class="row" style="margin-top:6px">
-          <button id="toggleCommunity">Toggle community points</button>
-          <button id="toggleMyPoints">Toggle my points</button>
-        </div>
-      </div>
-      <div style="margin-top:10px">
-        <label>Click the map to record Jupiter</label>
-        <p style="margin:6px 0 0;color:#9fb0c6">On each tap we store RA/Dec, your lat/lon, and time. Jupiter is hidden on the map, so your eyes decide.</p>
+      <div style="color:#9fb0c6;font-size:13px;line-height:1.4">
+        <b>Rules:</b>
+        <ul style="margin:8px 0 0 18px">
+          <li>Planets are hidden. Find Jupiter by star pattern only.</li>
+          <li>Timestamp is always <b>current UTC</b>.</li>
+          <li>Location is fixed: <b>Samedan</b> (46.534 N, 9.872 E).</li>
+        </ul>
       </div>
     </aside>
 
     <section class="card">
       <div id="mapwrap">
-        <canvas id="celestial-map" width="1200" height="1200" aria-label="Sky map"></canvas>
+        <canvas id="celestial-map" width="1400" height="1400" aria-label="Sky map"></canvas>
         <svg id="overlay"></svg>
-        <div class="legend">Tap to add a point • Jupiter layer is disabled</div>
+        <div class="legend">Tap to add a point • Clean dark sky • Jupiter hidden</div>
       </div>
       <div class="row" style="margin-top:8px">
         <div class="pill" id="lastClick">last: —</div>
         <div class="pill" id="count">points: 0</div>
+        <div class="pill">Observatory: Samedan (46.534, 9.872)</div>
       </div>
     </section>
   </main>
-  <div class="footer">Self-hostable. Hide planet layer by design. Data stored per user. Aggregate over months to see Jupiter's path.</div>
+
+  <div class="footer">Stores RA/Dec + current UTC + fixed Samedan coordinates in Supabase. Free navigation; no constellations/grid/labels shown by default.</div>
 
 <script>
+// ===================== FIXED SETTINGS =====================
+const LAT_SAMEDAN = 46.534;
+const LON_SAMEDAN = 9.872; // east positive
+
 // ===================== CONFIGURE SUPABASE =====================
 const SUPABASE_URL = "https://qunlkfmgvkmhgkmvrrty.supabase.co";  // <-- replace
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1bmxrZm1ndmttaGdrbXZycnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NDY1MjcsImV4cCI6MjA3NzQyMjUyN30.pWZsFCu0eq95VnQ3C_5F_Hv8FLJGDZDo2qcyxPRk6RE";                // <-- replace
@@ -132,66 +115,29 @@ async function emailLogin() {
   const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
   authMsgEl.textContent = error ? `Error: ${error.message}` : 'Check your inbox for a magic link.';
 }
-
 async function guestLogin() {
-  // Anonymous: create a random user by sign-in with OTP to a random alias or use a service role on server.
-  // For demo we just proceed without ensuring a user; Supabase still gives a session for RLS if enabled off.
-  const { data, error } = await supabase.auth.signInAnonymously();
+  const { error } = await supabase.auth.signInAnonymously();
   authMsgEl.textContent = error ? `Error: ${error.message}` : 'Guest session active.';
   setSessionInfo();
 }
 
 document.getElementById('emailLogin').onclick = emailLogin;
-
 document.getElementById('guestLogin').onclick = guestLogin;
-
 document.getElementById('signOut').onclick = async () => { await supabase.auth.signOut(); setSessionInfo(); };
 
 supabase.auth.onAuthStateChange((_event, _session) => setSessionInfo());
 setSessionInfo();
 
-// ===================== LOCATION/TIME =====================
-const latEl = document.getElementById('lat');
-const lonEl = document.getElementById('lon');
-const locInfoEl = document.getElementById('locInfo');
-const obsTimeEl = document.getElementById('obsTime');
-
-document.getElementById('useGPS').onclick = () => {
-  if (!navigator.geolocation) return alert('Geolocation not available');
-  navigator.geolocation.getCurrentPosition(pos => {
-    const { latitude, longitude } = pos.coords;
-    latEl.value = latitude.toFixed(4);
-    lonEl.value = longitude.toFixed(4);
-    locInfoEl.textContent = `loc: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-    refreshMap();
-  }, err => alert(err.message), { enableHighAccuracy: true, timeout: 8000 });
-};
-
-document.getElementById('applyLocation').onclick = () => {
-  locInfoEl.textContent = `loc: ${Number(latEl.value).toFixed(4)}, ${Number(lonEl.value).toFixed(4)}`;
-  refreshMap();
-};
-
-document.getElementById('nowBtn').onclick = () => {
-  const now = new Date();
-  obsTimeEl.value = now.toISOString().slice(0,16);
-  refreshMap();
-};
-
-// default time = now
-obsTimeEl.value = new Date().toISOString().slice(0,16);
-
 // ===================== SKY MAP (D3-Celestial) =====================
 const mapCfg = {
-  width: 0,                    // auto fit
+  width: 0,                    // auto fit to container
   projection: 'aitoff',
   datapath: 'https://ofrohn.github.io/data/',
   form: false,
-  controls: true,
+  controls: true,              // zoom/pan controls
   interactive: true,
-  location: true,
-  negative: true,
-  constellations: { names: true, lines: true, bounds: false },
+  negative: true,              // dark theme
+  constellations: { names: false, lines: false, bounds: false }, // clean sky
   stars: { show: true, limit: 6 },
   dsos: { show: false },
   planets: { show: false },   // <— hide all planets (no Jupiter)
@@ -201,17 +147,11 @@ const mapCfg = {
 };
 
 function refreshMap() {
-  // Set observer location and time if provided
-  const lat = parseFloat(latEl.value);
-  const lon = parseFloat(lonEl.value);
-  const when = new Date(obsTimeEl.value || Date.now());
+  // Fixed observer location (Samedan) and current time
+  Celestial.location([LON_SAMEDAN, LAT_SAMEDAN]);
+  Celestial.date(new Date());
 
-  if (!isNaN(lat) && !isNaN(lon)) {
-    Celestial.location([lon, lat]); // note: [lon, lat]
-  }
-  Celestial.date(when);
-
-  // Fit to container
+  // Fit to container width
   const wrap = document.getElementById('mapwrap');
   mapCfg.width = wrap.clientWidth - 2;
   Celestial.display(mapCfg);
@@ -222,57 +162,56 @@ function drawOverlays() {
   const overlay = d3.select('#overlay');
   overlay.selectAll('*').remove();
 
-  // Draw community points
+  // community points
   if (layerCommunityVisible) {
     overlay.append('g').attr('id','gCommunity')
       .selectAll('circle').data(communityPoints).enter()
-      .append('circle').attr('class','dot')
-      .attr('r', 4)
+      .append('circle')
+      .attr('r', 3.5)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(34,197,94,0.85)')
+      .attr('stroke-width', 1.5)
       .attr('cx', d => Celestial.mapProjection(Celestial.coord(d.ra, d.dec))[0])
       .attr('cy', d => Celestial.mapProjection(Celestial.coord(d.ra, d.dec))[1])
-      .attr('opacity', 0.7);
+      .attr('opacity', 0.9);
   }
-  // Draw my points
+  // my points
   if (layerMyVisible) {
     overlay.append('g').attr('id','gMine')
       .selectAll('circle').data(myPoints).enter()
-      .append('circle').attr('class','dot')
+      .append('circle')
       .attr('r', 5)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(59,130,246,0.95)')
+      .attr('stroke-width', 1.8)
       .attr('cx', d => Celestial.mapProjection(Celestial.coord(d.ra, d.dec))[0])
       .attr('cy', d => Celestial.mapProjection(Celestial.coord(d.ra, d.dec))[1])
       .attr('opacity', 1.0);
   }
 }
 
-// Handle clicks -> record RA/Dec
+// Handle clicks -> record RA/Dec at current UTC, fixed Samedan lat/lon
 const lastClickEl = document.getElementById('lastClick');
 const countEl = document.getElementById('count');
 let myPoints = [], communityPoints = [];
 let layerCommunityVisible = true, layerMyVisible = true;
 
-document.getElementById('toggleCommunity').onclick = () => { layerCommunityVisible = !layerCommunityVisible; drawOverlays(); };
-document.getElementById('toggleMyPoints').onclick = () => { layerMyVisible = !layerMyVisible; drawOverlays(); };
-
-// The map canvas is within a container created by Celestial; attach click handler to the top wrapper
 function attachClickHandler() {
   d3.select('#celestial-map').on('click', function() {
-    const m = d3.mouse(this); // [x,y] in pixels on canvas
+    const m = d3.mouse(this); // [x,y] in pixels
     const inv = Celestial.mapProjection.invert(m);
     if (!inv) return;
     const raDeg = inv[0];
     const decDeg = inv[1];
-    const t = new Date(obsTimeEl.value || Date.now()).toISOString();
-    const lat = parseFloat(latEl.value); const lon = parseFloat(lonEl.value);
-    addObservation({ ra: raDeg, dec: decDeg, obs_time: t, lat, lon });
-  });
-}
+    const tISO = new Date().toISOString(); // current UTC
 
-function addObservation(p) {
-  myPoints.push(p);
-  countEl.textContent = `points: ${myPoints.length}`;
-  lastClickEl.textContent = `last: RA ${p.ra.toFixed(3)}°, Dec ${p.dec.toFixed(3)}° at ${p.obs_time}`;
-  drawOverlays();
-  saveObservation(p);
+    const p = { ra: raDeg, dec: decDeg, obs_time: tISO, lat: LAT_SAMEDAN, lon: LON_SAMEDAN };
+    myPoints.push(p);
+    countEl.textContent = `points: ${myPoints.length}`;
+    lastClickEl.textContent = `last: RA ${p.ra.toFixed(3)}°, Dec ${p.dec.toFixed(3)}° at ${p.obs_time}`;
+    drawOverlays();
+    saveObservation(p);
+  });
 }
 
 // Initial draw and bind click handler after first display
@@ -287,8 +226,8 @@ async function saveObservation(p) {
     ra_deg: p.ra,
     dec_deg: p.dec,
     obs_time: p.obs_time,
-    lat: isNaN(p.lat) ? null : p.lat,
-    lon: isNaN(p.lon) ? null : p.lon,
+    lat: p.lat,
+    lon: p.lon,
   };
   const { error } = await supabase.from('observations').insert(payload);
   if (error) console.error('Insert error', error);
@@ -319,9 +258,7 @@ async function loadCommunityObservations() {
 
 document.getElementById('refreshPositions').onclick = async () => { await loadMyObservations(); await loadCommunityObservations(); };
 
-// Auto-load after auth changes
 supabase.auth.onAuthStateChange(async () => { await loadMyObservations(); await loadCommunityObservations(); });
-
 </script>
 </body>
 </html>
