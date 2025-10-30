@@ -27,9 +27,9 @@
     .footer{padding:10px 14px;color:#94a3b8;font-size:12px;text-align:center}
     a{color:#a5b4fc;text-decoration:none}
   </style>
-  <!-- Celestial.js (D3-based sky map) --> 
-  <script defer src="https://d3js.org/d3.v4.min.js"></script>
+  <!-- Celestial.js (D3-based sky map) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/celestial.css">
+  <script defer src="https://d3js.org/d3.v4.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/celestial.min.js"></script>
   <!-- Supabase JS (auth + database). Fill in your project details below. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -39,6 +39,8 @@
     <h1>Jupiter Tracker</h1>
     <div class="pill" id="status">not signed in</div>
   </header>
+
+  <div id="loadWarning" style="display:none;margin:10px 14px;padding:10px;border-radius:10px;border:1px solid #78350f;background:#24160a;color:#fde68a">Sky map library didn't load. If you're on GitHub Pages and still see this, try disabling browser extensions (ad/script blockers) or use the fallback CDN by uncommenting it in the HTML.</div>
 
   <main>
     <aside class="card" id="authCard">
@@ -156,10 +158,20 @@ function refreshMap() {
   const wrap = document.getElementById('mapwrap');
   mapCfg.width = Math.max(320, wrap.clientWidth - 2);
   Celestial.display(mapCfg);
+  // Resize overlay SVG to match canvas size in CSS pixels
+  const mapCanvas = document.querySelector('#celestial-map canvas');
+  if (mapCanvas) {
+    const ob = mapCanvas.getBoundingClientRect();
+    const overlayEl = document.getElementById('overlay');
+    overlayEl.setAttribute('width', Math.round(ob.width));
+    overlayEl.setAttribute('height', Math.round(ob.height));
+  }
   // Basic sanity check to help troubleshooting
-  const c = document.getElementById('celestial-map');
-  if (!c.width || !c.height) {
-    console.warn('Celestial canvas has zero size. Ensure you are viewing via GitHub Pages or a local server.');
+  const c = document.querySelector('#celestial-map canvas');
+  if (!c) {
+    const warn = document.getElementById('loadWarning');
+    if (warn) warn.style.display = 'block';
+    console.warn('Celestial canvas missing. Ensure scripts loaded and container is correct.');
   }
   drawOverlays();
 }
@@ -221,7 +233,16 @@ function attachClickHandler() {
 }
 
 // Initial draw and bind click handler after first display
-window.addEventListener('load', () => { refreshMap(); attachClickHandler(); });
+window.addEventListener('load', () => {
+  if (typeof window.Celestial === 'undefined') {
+    const warn = document.getElementById('loadWarning');
+    if (warn) warn.style.display = 'block';
+    console.error('Celestial is not defined. Likely blocked by an extension or CORS.');
+    return;
+  }
+  refreshMap();
+  attachClickHandler();
+});
 window.addEventListener('resize', () => { refreshMap(); });
 
 // ===================== DATA STORAGE (Supabase) =====================
