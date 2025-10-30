@@ -28,9 +28,9 @@
     a{color:#a5b4fc;text-decoration:none}
   </style>
   <!-- Celestial.js (D3-based sky map) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/celestial.css">
-  <script defer src="https://d3js.org/d3.v4.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/celestial.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/celestial.css">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/celestial.min.js"></script>
   <!-- Supabase JS (auth + database). Fill in your project details below. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -135,7 +135,7 @@ const mapCfg = {
   container: 'celestial-map',
   width: 0,                    // auto fit to container
   projection: 'aitoff',
-  datapath: 'https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/data/',
+  datapath: 'https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/',
   form: false,
   controls: true,              // zoom/pan controls
   interactive: true,
