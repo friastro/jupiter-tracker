@@ -130,6 +130,7 @@ setSessionInfo();
 
 // ===================== SKY MAP (D3-Celestial) =====================
 const mapCfg = {
+  container: 'celestial-map',
   width: 0,                    // auto fit to container
   projection: 'aitoff',
   datapath: 'https://ofrohn.github.io/data/',
@@ -138,7 +139,7 @@ const mapCfg = {
   interactive: true,
   negative: true,              // dark theme
   constellations: { names: false, lines: false, bounds: false }, // clean sky
-  stars: { show: true, limit: 6 },
+  stars: { show: true, limit: 8, colors: true },
   dsos: { show: false },
   planets: { show: false },   // <— hide all planets (no Jupiter)
   mw: { show: true },
@@ -153,8 +154,13 @@ function refreshMap() {
 
   // Fit to container width
   const wrap = document.getElementById('mapwrap');
-  mapCfg.width = wrap.clientWidth - 2;
+  mapCfg.width = Math.max(320, wrap.clientWidth - 2);
   Celestial.display(mapCfg);
+  // Basic sanity check to help troubleshooting
+  const c = document.getElementById('celestial-map');
+  if (!c.width || !c.height) {
+    console.warn('Celestial canvas has zero size. Ensure you are viewing via GitHub Pages or a local server.');
+  }
   drawOverlays();
 }
 
