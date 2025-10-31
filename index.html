@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <title>Jupiter Crowd Map</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<!-- Prevent page zoom (allow gestures to reach the canvas) -->
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/celestial.css">
 <style>
   :root { --bg:#0b1020; --panel:#0f172a; --muted:#9fb0c6; --text:#e5e7eb; }
@@ -19,22 +23,20 @@
   button { cursor:pointer; font-weight:700; }
   .pill { display:inline-block; border:1px solid #243044; border-radius:999px; padding:6px 10px; color:#9fb0c6; font-size:12px; }
   .stage { position:relative; border:1px solid #1f2937; border-radius:12px; overflow:hidden; }
-  #mapwrap { position:relative; }
-  #celestial-map { width:100%; height:70vh; }
+  #mapwrap { position:relative; touch-action:none; } /* let d3-celestial handle gestures */
+  #celestial-map, #celestial-map canvas { width:100%; height:70vh; touch-action:none; }
   #overlay { position:absolute; inset:0; pointer-events:none; }
-  #mapwrap, #celestial-map, #celestial-map canvas {
-    touch-action: none;
-  }
   .legend { position:absolute; left:8px; bottom:8px; color:#a3b3c7; font-size:12px;
             background:rgba(15,23,42,.8); padding:6px 8px; border-radius:8px; border:1px solid #243044; }
   ul { margin:6px 0 0 0; padding-left:18px; }
 </style>
 
-<!-- Legacy deps in the right order -->
+<!-- Required old D3 stack -->
 <script src="https://d3js.org/d3.v3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson@1.6.27/topojson.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-geo-projection@0.2.16/d3.geo.projection.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/celestial.min.js"></script>
+
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -77,7 +79,7 @@
       <div id="mapwrap">
         <div id="celestial-map" aria-label="Sky map"></div>
         <svg id="overlay"></svg>
-        <div class="legend">Pan/zoom freely • Planets hidden • Click once to set your point</div>
+        <div class="legend">Pan/zoom freely • Planets hidden • Tap to mark Jupiter</div>
       </div>
       <div style="margin-top:8px"><span class="pill" id="last">last: —</span></div>
     </div>
@@ -85,12 +87,12 @@
 </main>
 
 <script>
-/* ====== Config ====== */
-const SUPABASE_URL = "https://qunlkfmgvkmhgkmvrrty.supabase.co";         // <-- CHANGE
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1bmxrZm1ndmttaGdrbXZycnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NDY1MjcsImV4cCI6MjA3NzQyMjUyN30.pWZsFCu0eq95VnQ3C_5F_Hv8FLJGDZDo2qcyxPRk6RE";                       // <-- CHANGE
+/* === CONFIG === */
+const SUPABASE_URL = "https://qunlkfmgvkmhgkmvrrty.supabase.co";      // <-- your project URL
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1bmxrZm1ndmttaGdrbXZycnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NDY1MjcsImV4cCI6MjA3NzQyMjUyN30.pWZsFCu0eq95VnQ3C_5F_Hv8FLJGDZDo2qcyxPRk6RE";                    // <-- your anon key
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ====== Auth ====== */
+/* === AUTH === */
 const statusEl = document.getElementById('status');
 const msgEl = document.getElementById('msg');
 async function setSessionInfo(){
@@ -115,7 +117,7 @@ document.getElementById('logout').onclick = async () => { await sb.auth.signOut(
 sb.auth.onAuthStateChange((_e,_s)=>setSessionInfo());
 setSessionInfo();
 
-/* ====== Map (d3-celestial) ====== */
+/* === STAR MAP === */
 const mapCfg = {
   container: 'celestial-map',
   projection: 'aitoff',
@@ -123,11 +125,11 @@ const mapCfg = {
   form: false,
   controls: true,
   interactive: true,
-  negative: true, // dark
+  negative: true,
   constellations: { names: false, lines: false, bounds: false },
   stars: { show: true, limit: 8, colors: true },
   dsos: { show: false },
-  planets: { show: false }, // hide Jupiter et al.
+  planets: { show: false },
   mw: { show: true },
   background: { fill: 'transparent', stroke: '#192033', opacity: 0.7 },
   horizon: { show: true },
@@ -142,44 +144,43 @@ function resizeOverlay(){
   ov.setAttribute('height', Math.round(r.height));
 }
 function renderMap(){
-  mapCfg.date = new Date(); // always current time
+  mapCfg.date = new Date();
   Celestial.display(mapCfg);
   resizeOverlay();
+  bindCanvasClick();
   drawOverlays();
 }
 window.addEventListener('load', renderMap);
 window.addEventListener('resize', renderMap);
 
-/* ====== Click handler -> RA/Dec upsert ====== */
+/* === CLICK HANDLER ON CANVAS === */
 const lastEl = document.getElementById('last');
-const overlay = document.getElementById('overlay');
-overlay.style.pointerEvents = 'auto'; // enable clicks
-
-overlay.addEventListener('click', async (e) => {
-  const { data:{ user } } = await sb.auth.getUser();
-  if (!user){ msgEl.textContent = "Sign in first"; return; }
-
+function bindCanvasClick(){
   const cv = document.querySelector('#celestial-map canvas');
-  const rect = cv.getBoundingClientRect();
-  const px = e.clientX - rect.left;
-  const py = e.clientY - rect.top;
+  if(!cv || cv._bound) return;
+  cv._bound = true;
+  cv.addEventListener('click', async (e) => {
+    const { data:{ user } } = await sb.auth.getUser();
+    if (!user){ msgEl.textContent = "Sign in first"; return; }
 
-  const inv = Celestial.mapProjection.invert([px, py]);
-  if(!inv){ return; }
-  const ra = inv[0], dec = inv[1]; // degrees
+    const rect = cv.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const inv = Celestial.mapProjection.invert([px, py]);
+    if(!inv){ return; }
+    const ra = inv[0], dec = inv[1];
 
-  // upsert one row per user
-  const { error } = await sb.from('observations')
-    .upsert({ user_id: user.id, ra_deg: ra, dec_deg: dec }, { onConflict: 'user_id' });
-  if(error){ msgEl.textContent = error.message; return; }
+    const { error } = await sb.from('observations')
+      .upsert({ user_id: user.id, ra_deg: ra, dec_deg: dec }, { onConflict: 'user_id' });
+    if(error){ msgEl.textContent = error.message; return; }
 
-  lastEl.textContent = `last: RA ${ra.toFixed(3)}°, Dec ${dec.toFixed(3)}° @ now`;
-  await loadMine(); await loadAll(); drawOverlays();
-});
+    lastEl.textContent = `last: RA ${ra.toFixed(3)}°, Dec ${dec.toFixed(3)}° @ now`;
+    await loadMine(); await loadAll(); drawOverlays();
+  }, { passive: true });
+}
 
-/* ====== Load + draw points ====== */
-let myPoint = null, allPoints = [];
-
+/* === LOAD + DRAW === */
+let myPoint=null, allPoints=[];
 async function loadMine(){
   const { data:{ user } } = await sb.auth.getUser();
   if(!user){ myPoint=null; drawOverlays(); return; }
@@ -188,58 +189,48 @@ async function loadMine(){
     .select('ra_deg, dec_deg, obs_time')
     .eq('user_id', user.id)
     .limit(1);
-  if(!error && data && data.length){
-    myPoint = data[0];
-    document.getElementById('mineList').innerHTML =
+  if(!error && data.length){
+    myPoint=data[0];
+    document.getElementById('mineList').innerHTML=
       `<li>${new Date(myPoint.obs_time).toLocaleString()} — RA ${myPoint.ra_deg.toFixed(2)}°, Dec ${myPoint.dec_deg.toFixed(2)}°</li>`;
   } else {
-    document.getElementById('mineList').innerHTML = '<li>—</li>';
-    myPoint = null;
+    document.getElementById('mineList').innerHTML='<li>—</li>'; myPoint=null;
   }
-  document.getElementById('counts').textContent =
-    `mine: ${myPoint?1:0} • all: ${allPoints.length}`;
+  document.getElementById('counts').textContent=`mine: ${myPoint?1:0} • all: ${allPoints.length}`;
 }
-
 async function loadAll(){
   const { data, error } = await sb
     .from('observations_public')
     .select('ra_deg, dec_deg, obs_time')
-    .order('obs_time', { ascending:false })
-    .limit(2000); // cap for performance
-  if(!error){ allPoints = data || []; }
-  document.getElementById('allList').innerHTML =
+    .order('obs_time',{ascending:false}).limit(2000);
+  if(!error){ allPoints=data||[]; }
+  document.getElementById('allList').innerHTML=
     (allPoints.slice(0,8).map(r =>
       `<li>${new Date(r.obs_time).toLocaleString()} — RA ${r.ra_deg.toFixed(2)}°, Dec ${r.dec_deg.toFixed(2)}°</li>`
     ).join('')) || '<li>—</li>';
-  document.getElementById('counts').textContent =
-    `mine: ${myPoint?1:0} • all: ${allPoints.length}`;
+  document.getElementById('counts').textContent=`mine: ${myPoint?1:0} • all: ${allPoints.length}`;
   drawOverlays();
 }
-
 function drawOverlays(){
-  const ov = document.getElementById('overlay');
-  while (ov.firstChild) ov.removeChild(ov.firstChild);
-  const ns = "http://www.w3.org/2000/svg";
-
-  function drawDot(ra, dec, stroke, r){
-    const p = Celestial.mapProjection(Celestial.coord(ra, dec));
+  const ov=document.getElementById('overlay');
+  while(ov.firstChild) ov.removeChild(ov.firstChild);
+  const ns="http://www.w3.org/2000/svg";
+  function dot(ra,dec,color,r){
+    const p=Celestial.mapProjection(Celestial.coord(ra,dec));
     if(!p) return;
-    const c = document.createElementNS(ns, 'circle');
-    c.setAttribute('cx', p[0]); c.setAttribute('cy', p[1]);
-    c.setAttribute('r', r); c.setAttribute('fill', 'none');
-    c.setAttribute('stroke-width', '2'); c.setAttribute('stroke', stroke);
+    const c=document.createElementNS(ns,'circle');
+    c.setAttribute('cx',p[0]); c.setAttribute('cy',p[1]);
+    c.setAttribute('r',r); c.setAttribute('fill','none');
+    c.setAttribute('stroke',color); c.setAttribute('stroke-width','2');
     ov.appendChild(c);
   }
-  // community (green)
-  allPoints.forEach(pt => drawDot(pt.ra_deg, pt.dec_deg, 'rgba(34,197,94,0.85)', 4));
-  // mine (blue)
-  if(myPoint) drawDot(myPoint.ra_deg, myPoint.dec_deg, 'rgba(59,130,246,0.95)', 6);
+  allPoints.forEach(pt=>dot(pt.ra_deg,pt.dec_deg,'rgba(34,197,94,0.85)',4));
+  if(myPoint) dot(myPoint.ra_deg,myPoint.dec_deg,'rgba(59,130,246,0.95)',6);
 }
+document.getElementById('refreshMine').onclick=loadMine;
+document.getElementById('refreshAll').onclick=loadAll;
 
-document.getElementById('refreshMine').onclick = loadMine;
-document.getElementById('refreshAll').onclick = loadAll;
-
-(async () => { await loadAll(); await loadMine(); })();
+(async()=>{ await loadAll(); await loadMine(); })();
 </script>
 </body>
 </html>
